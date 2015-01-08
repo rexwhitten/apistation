@@ -19,6 +19,14 @@ namespace apistation
     using System.Collections.Concurrent;
     using System.Configuration;
 
+    public class Sample
+    {
+        public string Name { get; set; }
+        public string Id { get; set; }
+        public int number { get; set; }
+    }
+
+
     public class ApiModule : NancyModule
     {
         #region [ Static Cache ]
@@ -53,24 +61,70 @@ namespace apistation
                 try
                 {
                     #region [ HTTP GET ]
-                    Hashtable response_obj = new Hashtable();
-                    string path = Request.Path;
-                    string resource_path = String.Format("{0}/{1}", ConfigurationManager.AppSettings["api.resource.path"], Request.Path.Replace("/", "_"));
+                    string path = Request.Path.Replace("/", "_");
+                    string resource_path = String.Format("{0}/{1}", ConfigurationManager.AppSettings["api.resource.path"], path);
 
                     if (this.Authenticated(Request))
                     {
                         var resources = (new DirectoryInfo(ConfigurationManager.AppSettings["api.resource.path"]))
-                                                                      .GetFiles("*.*", SearchOption.AllDirectories)
-                                                                      .Where(file => file.Name.Replace("_", "/").StartsWith(Request.Path))
-                                                                      .Select(json_file => File.ReadAllText(json_file.FullName))
-                                                                      .Select(json => JObject.Parse(json));
-                        if (resources.Any())
+                                                                      .EnumerateFiles(path + "*", SearchOption.TopDirectoryOnly)
+                                                                      .Select(json_file => File.ReadAllBytes(json_file.FullName));
+
+                        int numResourcesFound = resources.Count();
+                        if (numResourcesFound == 1)
                         {
-                            response_obj.Add("results", resources);
+                            return new Response
+                            {
+                                ContentType = "application/json",
+                                StatusCode = HttpStatusCode.OK,
+                                Contents = (stream) =>
+                                {
+                                    byte[] data = resources.First();
+                                    stream.Write(data, 0, data.Length);
+                                }
+                            };
+                        }
+                        else if (numResourcesFound > 1)
+                        {
+                            return new Response
+                            {
+                                ContentType = "application/json",
+                                StatusCode = HttpStatusCode.OK,
+                                Contents = (stream) =>
+                                {
+                                    byte[] data;
+                                    byte[] comma = Encoding.UTF8.GetBytes(",");
+
+                                    bool first = true;
+                                    foreach (var resourceData in resources)
+                                    {
+                                        if (first)
+                                        {
+                                            first = false;
+                                            data = Encoding.UTF8.GetBytes("[");
+                                            stream.Write(data, 0, data.Length);
+                                        }
+                                        else
+                                            stream.Write(comma, 0, comma.Length);
+
+                                        stream.Write(resourceData, 0, resourceData.Length);
+                                    }
+
+                                    data = Encoding.UTF8.GetBytes("]");
+                                    stream.Write(data, 0, data.Length);
+                                }
+                            };
                         }
                     }
+                    //else numResourcesFound == 0
+                    return new Response
+                    {
+                        ContentType = "text/text",
+                        StatusCode = HttpStatusCode.NotFound,
+                        ReasonPhrase = Request.Path + ": not found",
+                        Contents = (stream) => stream.Close()
+                    };
 
-                    return Response.AsJson(response_obj, HttpStatusCode.OK);
                     #endregion
                 }
                 catch (Exception x)
