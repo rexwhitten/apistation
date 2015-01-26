@@ -12,127 +12,68 @@ namespace apistation
     using Nancy.Responses;
     using System.Dynamic;
     using System.Collections;
-    using Newtonsoft.Json;
-    using Newtonsoft.Json.Converters;
-    using Newtonsoft.Json.Linq;
     using System.IO;
     using System.Collections.Concurrent;
     using System.Configuration;
-
-    public class Sample
-    {
-        public string Name { get; set; }
-        public string Id { get; set; }
-        public int number { get; set; }
-    }
-
+    using apistation.Components;
 
     public class ApiModule : NancyModule
     {
-        #region [ Static Cache ]
+        #region [ Components ]
+        private IAuthenticationComponent Authentication { get; set; }
+        private IBodyParserComponent BodyParser { get; set; }
+        private IDataAccessComponent DataAccess { get; set; }
+        private ILogComponent Logging { get; set; }
+        private IOptionsComponent Options { get; set; }
+
         #endregion
 
         #region [ Functions ]
-        /// <summary>
-        /// Authentication Verification Function
-        /// </summary>
-        /// <param name="Request"></param>
-        /// <returns></returns>
-        private bool Authenticated(Request Request)
-        {
-            bool result = false;
-
-            result = true;
-
-            return result;
-        }
         #endregion
 
         #region [ Constructor ]
         public ApiModule()
             : base(ConfigurationManager.AppSettings["api.base.route"])
         {
+            // Route Logic 
             string api_route = "/{path*}";
 
+            this.Authentication = ComponentFactory.LoadAuthentication(new Object());
+            this.BodyParser = ComponentFactory.LoadBodyParser(new Object());
+            this.DataAccess = ComponentFactory.LoadDataAccess(new Object());
+            this.Logging = ComponentFactory.LoadLogging(new Object());
+            this.Options = ComponentFactory.LoadOptions(new Object());
+
+            #region [ Route Handlers ]
             Get[api_route] = _ =>
             {
                 // Logging 
                 Console.WriteLine(String.Format("{1} {0}", Request.Path, Request.Method));
+                
                 try
                 {
                     #region [ HTTP GET ]
-                    string path = Request.Path.Replace("/", "_");
-                    string resource_path = String.Format("{0}/{1}", ConfigurationManager.AppSettings["api.resource.path"], path);
-
-                    if (this.Authenticated(Request))
+                    if (this.Authentication.IsAuthenticated(Request) == true)
                     {
-                        var resources = (new DirectoryInfo(ConfigurationManager.AppSettings["api.resource.path"]))
-                                                                      .EnumerateFiles(path + "*", SearchOption.TopDirectoryOnly)
-                                                                      .Select(json_file => File.ReadAllBytes(json_file.FullName));
+                        var results = this.DataAccess.SelectResources(Request.Path);
 
-                        int numResourcesFound = resources.Count();
-                        if (numResourcesFound == 1)
+                        if (results.Any())
                         {
-                            return new Response
-                            {
-                                ContentType = "application/json",
-                                StatusCode = HttpStatusCode.OK,
-                                Contents = (stream) =>
-                                {
-                                    byte[] data = resources.First();
-                                    stream.Write(data, 0, data.Length);
-                                }
-                            };
+                            return Response.AsJson(results, HttpStatusCode.OK);
                         }
-                        else if (numResourcesFound > 1)
-                        {
-                            return new Response
-                            {
-                                ContentType = "application/json",
-                                StatusCode = HttpStatusCode.OK,
-                                Contents = (stream) =>
-                                {
-                                    byte[] data;
-                                    byte[] comma = Encoding.UTF8.GetBytes(",");
 
-                                    bool first = true;
-                                    foreach (var resourceData in resources)
-                                    {
-                                        if (first)
-                                        {
-                                            first = false;
-                                            data = Encoding.UTF8.GetBytes("[");
-                                            stream.Write(data, 0, data.Length);
-                                        }
-                                        else
-                                            stream.Write(comma, 0, comma.Length);
-
-                                        stream.Write(resourceData, 0, resourceData.Length);
-                                    }
-
-                                    data = Encoding.UTF8.GetBytes("]");
-                                    stream.Write(data, 0, data.Length);
-                                }
-                            };
-                        }
+                        return Response.AsJson(results, HttpStatusCode.NotFound);
                     }
-                    //else numResourcesFound == 0
-                    return new Response
+                    else
                     {
-                        ContentType = "text/text",
-                        StatusCode = HttpStatusCode.NotFound,
-                        ReasonPhrase = Request.Path + ": not found",
-                        Contents = (stream) => stream.Close()
-                    };
-
+                        return Response.AsJson("not authenticated", HttpStatusCode.Unauthorized);
+                    }
                     #endregion
                 }
                 catch (Exception x)
                 {
-                    Console.WriteLine(String.Format("ERROR : {0}", x.Message));
-                    Hashtable error_model = new Hashtable();
-                    error_model.Add("error", x.Message);
-                    return Response.AsJson(error_model, HttpStatusCode.InternalServerError);
+                    this.Logging.LogException(x);
+                    return Response.AsJson("error", HttpStatusCode.InternalServerError);
                 }
             };
 
@@ -147,31 +88,25 @@ namespace apistation
                     Hashtable response_obj = new Hashtable();
                     string resource_path = String.Format("{0}/{1}", ConfigurationManager.AppSettings["api.resource.path"], Request.Path.Replace("/", "_"));
 
-                    if (this.Authenticated(Request))
+                    if (this.Authentication.IsAuthenticated(Request))
                     {
-                        if (File.Exists(resource_path))
-                        {
-                            // Update
-                            File.WriteAllText(resource_path, Request.Body.ReadAsString());
-                            response_obj.Add("resource.action", "update");
-                        }
-                        else
-                        {
-                            // Create
-                            File.WriteAllText(resource_path, Request.Body.ReadAsString());
-                            response_obj.Add("resource.action", "create");
-                        }
+                        List<Hashtable> model = this.BodyParser.Parse(Request);
+
+                        this.DataAccess.Create(model);
+                        return Response.AsJson(response_obj, HttpStatusCode.OK);
+                    }
+                    else
+                    {
+                        return Response.AsJson("not authenticated", HttpStatusCode.Unauthorized);
                     }
 
-                    return Response.AsJson(response_obj, HttpStatusCode.OK);
+                    
                     #endregion
                 }
                 catch (Exception x)
                 {
-                    Console.WriteLine(String.Format("ERROR : {0}", x.Message));
-                    Hashtable error_model = new Hashtable();
-                    error_model.Add("error", x.Message);
-                    return Response.AsJson(error_model, HttpStatusCode.InternalServerError);
+                    this.Logging.LogException(x);
+                    return Response.AsJson("error", HttpStatusCode.InternalServerError);
                 }
             };
 
@@ -186,31 +121,25 @@ namespace apistation
                     Hashtable response_obj = new Hashtable();
                     string resource_path = String.Format("{0}/{1}", ConfigurationManager.AppSettings["api.resource.path"], Request.Path.Replace("/", "_"));
 
-                    if (this.Authenticated(Request))
+                    if (this.Authentication.IsAuthenticated(Request))
                     {
-                        if (File.Exists(resource_path))
-                        {
-                            // Update
-                            File.WriteAllText(resource_path, Request.Body.ReadAsString());
-                            response_obj.Add("resource.action", "update");
-                        }
-                        else
-                        {
-                            // Create
-                            File.WriteAllText(resource_path, Request.Body.ReadAsString());
-                            response_obj.Add("resource.action", "create");
-                        }
+                        List<Hashtable> model = this.BodyParser.Parse(Request);
+
+                        this.DataAccess.Update(model);
+                        return Response.AsJson(response_obj, HttpStatusCode.OK);
+                    }
+                    else
+                    {
+                        return Response.AsJson("not authenticated", HttpStatusCode.Unauthorized);
                     }
 
-                    return Response.AsJson(response_obj, HttpStatusCode.OK);
+
                     #endregion
                 }
                 catch (Exception x)
                 {
-                    Console.WriteLine(String.Format("ERROR : {0}", x.Message));
-                    Hashtable error_model = new Hashtable();
-                    error_model.Add("error", x.Message);
-                    return Response.AsJson(error_model, HttpStatusCode.InternalServerError);
+                    this.Logging.LogException(x);
+                    return Response.AsJson("error", HttpStatusCode.InternalServerError);
                 }
             };
 
@@ -221,25 +150,28 @@ namespace apistation
 
                 try
                 {
-                    #region [ HTTP DELETE ]
+                    #region [ HTTP PUT ]
                     Hashtable response_obj = new Hashtable();
+                    string resource_path = String.Format("{0}/{1}", ConfigurationManager.AppSettings["api.resource.path"], Request.Path.Replace("/", "_"));
 
-                    if (this.Authenticated(Request))
+                    if (this.Authentication.IsAuthenticated(Request))
                     {
-
+                        this.DataAccess.Delete(Request.Path);
+                        return Response.AsJson(response_obj, HttpStatusCode.OK);
                     }
-
-                    return Response.AsJson(response_obj, HttpStatusCode.OK);
+                    else
+                    {
+                        return Response.AsJson("not authenticated", HttpStatusCode.Unauthorized);
+                    }
                     #endregion
                 }
                 catch (Exception x)
                 {
-                    Console.WriteLine(String.Format("ERROR : {0}", x.Message));
-                    Hashtable error_model = new Hashtable();
-                    error_model.Add("error", x.Message);
-                    return Response.AsJson(error_model, HttpStatusCode.InternalServerError);
+                    this.Logging.LogException(x);
+                    return Response.AsJson("error", HttpStatusCode.InternalServerError);
                 }
             };
+            #endregion
         }
         #endregion
     }
