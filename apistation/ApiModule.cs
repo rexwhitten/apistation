@@ -17,32 +17,32 @@ namespace apistation
     using System.Configuration;
     using apistation.Components;
 
-    public class ApiModule : NancyModule
+    public class ApiModule : BaseApiModule
     {
-        #region [ Components ]
-        private IAuthenticationComponent Authentication { get; set; }
-        private IBodyParserComponent BodyParser { get; set; }
-        private IDataAccessComponent DataAccess { get; set; }
-        private ILogComponent Logging { get; set; }
-        private IOptionsComponent Options { get; set; }
-
-        #endregion
+       
 
         #region [ Functions ]
         #endregion
 
         #region [ Constructor ]
-        public ApiModule()
-            : base(ConfigurationManager.AppSettings["api.base.route"])
+        public ApiModule(
+                IAuthenticationComponent authentication,
+                IBodyParserComponent bodyParser,
+                IDataAccessComponent dataAccess,
+                ILogComponent log,
+                IOptionsComponent options
+            )
+            : base("/test",
+            authentication,
+            bodyParser,
+            dataAccess,
+            log,
+            options)
         {
-            // Route Logic 
+            // Route Logic this should be pulled from settings
             string api_route = "/{path*}";
 
-            this.Authentication = ComponentFactory.LoadAuthentication(new Object());
-            this.BodyParser = ComponentFactory.LoadBodyParser(new Object());
-            this.DataAccess = ComponentFactory.LoadDataAccess(new Object());
-            this.Logging = ComponentFactory.LoadLogging(new Object());
-            this.Options = ComponentFactory.LoadOptions(new Object());
+            
 
             #region [ Route Handlers ]
             Get[api_route] = _ =>

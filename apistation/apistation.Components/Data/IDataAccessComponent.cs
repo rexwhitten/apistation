@@ -10,5 +10,11 @@ namespace apistation.Components
     public interface IDataAccessComponent : IApiComponent
     {
         List<Hashtable> SelectResources(string p);
+
+        void Create(List<Hashtable> model);
+
+        void Update(List<Hashtable> model);
+
+        void Delete(string p);
     }
 }

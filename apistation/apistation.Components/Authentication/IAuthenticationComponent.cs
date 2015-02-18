@@ -9,5 +9,11 @@ namespace apistation.Components
     public interface IAuthenticationComponent : IApiComponent
     {
         bool IsAuthenticated(Nancy.Request Request);
+
+        AuthenticationResult Login(string good_username, string good_password);
+
+        AuthenticationResult GetRoles(string good_username);
+
+        AuthenticationResult Register(string good_username, string good_email, string good_password);
     }
 }
