@@ -1,60 +1,43 @@
-﻿using Nancy;
-using Nancy.Conventions;
-using Nancy.Hosting.Self;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Owin.Hosting;
+using Microsoft.Owin;
+using Owin;
 
-namespace apistation
+[assembly: OwinStartup(typeof(apistation.owin.DefaultStartup))]
+
+namespace apistation.owin
 {
-    public class CustomBoostrapper : DefaultNancyBootstrapper
+    public class DefaultStartup
     {
-        protected override void RequestStartup(Nancy.TinyIoc.TinyIoCContainer container, Nancy.Bootstrapper.IPipelines pipelines, NancyContext context)
+        private readonly string _baseUrl;
+
+        public DefaultStartup(string baseUrl)
         {
-            base.RequestStartup(container, pipelines, context);
-
-            //CORS Enable
-            pipelines.AfterRequest.AddItemToEndOfPipeline((ctx) =>
-            {
-                ctx.Response.WithHeader("Access-Control-Allow-Origin", "*")
-                            .WithHeader("Access-Control-Allow-Methods", "POST,GET,PUT,DELETE")
-                            .WithHeader("Access-Control-Allow-Headers", "Accept, Origin, Content-type");
-
-            });
+            _baseUrl = baseUrl;
         }
-
-        protected override void ConfigureConventions(NancyConventions conventions)
+        public void Configuration(IAppBuilder app)
         {
-            base.ConfigureConventions(conventions);
+            app.UseWelcomePage(new Microsoft.Owin.Diagnostics.WelcomePageOptions()
+            {
+                Path = new PathString("/welcome")
+            });
         }
     }
 
     public class Program
     {
-        #region [ Options ]
-     
-        #endregion
-
         static void Main(string[] args)
         {
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-
-            string host_listen_path = ConfigurationManager.AppSettings["host.listenpath"];
-
-            using (var host = new NancyHost(new Uri(host_listen_path)))
+            string baseUrl = "http://127.0.0.1:9908";
+            using (WebApp.Start<DefaultStartup>(baseUrl))
             {
-                host.Start();
-                Console.WriteLine("Hosting at {0}", host_listen_path);
-                Console.ReadLine();
+                Console.WriteLine("Ready.");
+                Console.ReadKey();
             }
-        }
-
-        static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-        {
-            Console.WriteLine("ERROR: " + ((Exception)e.ExceptionObject).Message);
         }
     }
 }

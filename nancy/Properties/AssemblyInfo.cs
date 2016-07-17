@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("apistation.owin")]
-[assembly: AssemblyDescription("owin implementation of apistation")]
+[assembly: AssemblyTitle("apistation")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("owin")]
-[assembly: AssemblyCopyright("")]
+[assembly: AssemblyProduct("apistation")]
+[assembly: AssemblyCopyright("Copyright ©  2014")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("80f838df-d09b-422c-96ef-bd75976435c6")]
+[assembly: Guid("ec7d6752-baa5-464e-b9bb-e33715998453")]
 
 // Version information for an assembly consists of the following four values:
 //
