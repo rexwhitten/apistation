@@ -49,8 +49,8 @@
       <HintPath>packages\Microsoft.Owin.Hosting.3.0.1\lib\net45\Microsoft.Owin.Hosting.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="NetJSON, Version=1.1.0.5, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\NetJSON.1.1.0.5\lib\net40\NetJSON.dll</HintPath>
+    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="Owin, Version=1.0.0.0, Culture=neutral, PublicKeyToken=f0ebd12fd5e55cc5, processorArchitecture=MSIL">
@@ -72,6 +72,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ApiStartup.cs" />
+    <Compile Include="Depends\DefaultAuth.cs" />
+    <Compile Include="Depends\DefaultLog.cs" />
+    <Compile Include="Depends\IAuth.cs" />
+    <Compile Include="Depends\ILog.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="Middleware\AuthMiddleware.cs" />
+    <Compile Include="Middleware\LogMiddleware.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
