@@ -77,8 +77,10 @@
     <Compile Include="Depends\DefaultLog.cs" />
     <Compile Include="Depends\IAuth.cs" />
     <Compile Include="Depends\ICache.cs" />
+    <Compile Include="Depends\IChannel.cs" />
     <Compile Include="Depends\ILog.cs" />
     <Compile Include="Depends\RedisCache.cs" />
+    <Compile Include="Depends\RedisChannel.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Middleware\AuthMiddleware.cs" />
     <Compile Include="Middleware\LogMiddleware.cs" />
