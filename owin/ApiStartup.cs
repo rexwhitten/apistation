@@ -19,7 +19,6 @@ namespace apistation.owin
     public class ApiStartup
     {
         private readonly string _baseUrl;
-        private static IConnectionMultiplexer redis = ConnectionMultiplexer.Connect("localhost");
 
         #region Constructors
         /// <summary>
@@ -40,20 +39,21 @@ namespace apistation.owin
             });
 
             // Composition of dependecies
+            ObjectFactory.Register<IAuth, DefaultAuth>();
+            ObjectFactory.Register<ILog, DefaultLog>();
             ObjectFactory.Register<ICache, RedisCache>();
+            ObjectFactory.Register<IChannel, RedisChannel>();
 
-            app.Use(typeof(LogMiddleware), new DefaultLog());
-            app.Use(typeof(AuthMiddleware), new DefaultAuth());
-            
-            
+            app.Use(typeof(LogMiddleware), ObjectFactory.Resolve<ILog>());
+            app.Use(typeof(AuthMiddleware), ObjectFactory.Resolve<IAuth>());
 
             // handles all api requests
             app.Run(context =>
             {
                 ICache cache = ObjectFactory.Resolve<ICache>();
-                var channel = redis.GetSubscriber();
-                var body = "{}"; // default body ; kept minimal
+                IChannel channel = ObjectFactory.Resolve<IChannel>();
 
+                var body = "{}"; // default body ; kept minimal
                 context.Response.StatusCode = 404; // default status code
                 context.Response.Headers.Add("Content-Type", new string[] { "application/json" });
 
@@ -120,6 +120,11 @@ namespace apistation.owin
                     context.Response.StatusCode = 500;
                     body = JsonConvert.SerializeObject(error.ToHashtable());
                 }
+                finally
+                {
+                    channel.Emit(context.Request.Path.Value, context.Environment);
+                }
+
                 return context.Response.WriteAsync(body);
             });
         }
