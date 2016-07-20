@@ -12,6 +12,7 @@ namespace apistation.owin
 {
     using Depends;
     using Middleware;
+    using Models;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Linq;
 
@@ -38,13 +39,18 @@ namespace apistation.owin
                 Path = new PathString("/welcome")
             });
 
+            // Composition of dependecies
+            ObjectFactory.Register<ICache, RedisCache>();
+
             app.Use(typeof(LogMiddleware), new DefaultLog());
             app.Use(typeof(AuthMiddleware), new DefaultAuth());
+            
+            
 
             // handles all api requests
             app.Run(context =>
             {
-                var cache = redis.GetDatabase();
+                ICache cache = ObjectFactory.Resolve<ICache>();
                 var channel = redis.GetSubscriber();
                 var body = "{}"; // default body ; kept minimal
 
@@ -59,7 +65,7 @@ namespace apistation.owin
                             #region http:get
                             if (cache.HashExists(context.Request.Path.Value, "@body"))
                             {
-                                body = cache.HashGet(context.Request.Path.Value, "@body").ToString();
+                                body = cache.HashGet(context.Request.Path.Value, "@body");
                                 context.Response.StatusCode = 200;
                             }
                             #endregion
@@ -69,10 +75,10 @@ namespace apistation.owin
                             if (!cache.HashExists(context.Request.Path.Value, "@body"))
                             {
                                 JObject input = context.Request.Body.ToJObject();
-                                cache.HashSet(context.Request.Path.Value, new HashEntry[3] {
-                                    new HashEntry("@body", input.ToString()),
-                                    new HashEntry("@event:create", DateTime.Now.ToBinary()),
-                                    new HashEntry("@uuid",Guid.NewGuid().ToByteArray())
+                                cache.HashSet(context.Request.Path.Value, new EntryModel[3] {
+                                    new EntryModel("@body", input.ToString()),
+                                    new EntryModel("@event:create", DateTime.Now.ToString()),
+                                    new EntryModel("@uuid",Guid.NewGuid().ToString())
                                 });
                                 context.Response.StatusCode = 202;
                             }
@@ -87,10 +93,10 @@ namespace apistation.owin
                             if (cache.HashExists(context.Request.Path.Value, "@body"))
                             {
                                 JObject input = context.Request.Body.ToJObject();
-                                cache.HashSet(context.Request.Path.Value, new HashEntry[3] {
-                                    new HashEntry("@body", input.ToString()),
-                                    new HashEntry("@event:update", DateTime.Now.ToBinary()),
-                                    new HashEntry("@versionId", Guid.NewGuid().ToByteArray())
+                                cache.HashSet(context.Request.Path.Value, new EntryModel[3] {
+                                    new EntryModel("@body", input.ToString()),
+                                    new EntryModel("@event:create", DateTime.Now.ToString()),
+                                    new EntryModel("@uuid",Guid.NewGuid().ToString())
                                 });
                                 context.Response.StatusCode = 202;
                             }

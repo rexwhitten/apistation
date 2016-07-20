@@ -76,6 +76,7 @@
     <Compile Include="Depends\DefaultAuth.cs" />
     <Compile Include="Depends\DefaultLog.cs" />
     <Compile Include="Depends\IAuth.cs" />
+    <Compile Include="Depends\ICache.cs" />
     <Compile Include="Depends\ILog.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Middleware\AuthMiddleware.cs" />
